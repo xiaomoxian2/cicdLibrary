@@ -1,22 +1,13 @@
 #!/bin/bash
 
-projectName=$1
-branchName=$2
+codeDir=$1
+projectName=$2
+branchName=$3
+nodeIp=$4
 # DATE="`date +%Y%m%d%H%M`"
-workHome=/home/admin
-gitUrl="https://github.com/xiaomoxian2/${projectName}.git"
 
-if [ -d $workHome/tmp ];then
-    rm -fr $workHome/tmp/*
-else
-    mkdir $workHome/tmp
-fi
+rsync -avz --delete $codeDir/ ${k3sIp}:/home/admin/${projectName}/
+#cd $workHome/tmp && /usr/bin/git clone -b ${branchName} $gitUrl
+ssh $nodeIp "bash supervisorctl restart gunicorn "
 
-cd $workHome/tmp && /usr/bin/git clone -b ${branchName} $gitUrl
-supervisorctl stop gunicorn
-
-rm -fr /home/admin/py_flask/*
-mv /home/admin/tmp/${projectName}/* /home/admin/py_flask/
-
-supervisorctl start gunicorn
 [ $? -eq 0 ] && echo "构建成功！"
