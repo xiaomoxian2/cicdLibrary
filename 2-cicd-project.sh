@@ -21,7 +21,7 @@ fi
 function deployMachine(){
     echo "==================物理机方式-部署开始====================="
     cd $tmpDir && /usr/bin/git clone -b ${branchName} $gitUrl
-    bash $cicdHome/${projectName}/2-deploy-m.sh $tmpDir ${projectName} ${branchName} $nodeIp
+    bash -x $cicdHome/${projectName}/2-deploy-m.sh $tmpDir ${projectName} ${branchName} $nodeIp
     echo "==================物理机方式-部署结束====================="
 }
 
