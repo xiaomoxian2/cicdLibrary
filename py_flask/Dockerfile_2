@@ -4,9 +4,10 @@ WORKDIR /home/admin
 
 add . /home/admin/py_flask
 RUN pip install -r /home/admin/py_flask/deploy/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ && \
-    cp -f /home/admin/py_flask/deploy/nginx.conf /usr/local/nginx/conf/nginx.conf && \
-    cp /home/admin/py_flask/deploy/supervisord.conf /etc/supervisord.conf && \
-    cp /home/admin/py_flask/deploy/base.conf /etc/supervisor/conf.d/base.conf && \
+    cp -f /home/admin/py_flask/deploy/nginx-alpine.conf /usr/local/nginx/conf/nginx.conf && \
     chmod +x /home/admin/py_flask/deploy/docker-entrypoint.sh
+
+#cp /home/admin/py_flask/deploy/supervisord.conf /etc/supervisord.conf
+#cp /home/admin/py_flask/deploy/base.conf /etc/supervisor/conf.d/base.conf
 #CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 CMD ["/home/admin/py_flask/deploy/docker-entrypoint.sh"]
