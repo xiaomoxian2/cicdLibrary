@@ -1,13 +1,23 @@
 #!/bin/bash
 
 codeDir=$1
-projectName=$2
-branchName=$3
-nodeIp=$4
+cicdHome=$2
+projectName=$3
+branchName=$4
+nodeIp=$5
 # DATE="`date +%Y%m%d%H%M`"
+imgTag=`/usr/bin/git rev-parse --short HEAD`
+imgName="local/flask:${imgTag}"
 
-rsync -avz --delete $codeDir/ ${k3sIp}:/home/admin/${projectName}/
+cp -f ${cicdHome}/${projectName}/* ${codeDir}/${projectName}/deploy/
+cd ${codeDir}/${projectName}
+/usr/bin/docker build -t ${imgName} -f deploy/Dockerfile_2 .
+/usr/bin/docker tag ${imgName} 10.50.2.92:8086/${imgName}
+/usr/bin/docker push 10.50.2.92:8086/${imgName}
+
+#rsync -avz --delete $codeDir/ ${nodeIp}:/home/admin/${projectName}/
 #cd $workHome/tmp && /usr/bin/git clone -b ${branchName} $gitUrl
-ssh $nodeIp "bash supervisorctl restart gunicorn "
+ssh $nodeIp "docker ps -a |grep "local/flask" |awk '{print $1}' |xargs docker stop"
+ssh $nodeIp "docker pull 10.50.2.92:8086/${imgName} && docker run -p 8088:80 -d 10.50.2.92:8086/${imgName}"
 
 [ $? -eq 0 ] && echo "构建成功！"

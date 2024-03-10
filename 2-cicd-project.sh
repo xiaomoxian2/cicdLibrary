@@ -27,8 +27,8 @@ function deployMachine(){
 
 function deployDocker(){
     echo "==================Docker方式-部署开始====================="
-    scp $workHome/${projectName}/2-deploy-docker.sh $nodeIp:/home/admin/2-deploy-docker.sh
-    ssh $nodeIp "bash /home/admin/2-deploy-docker.sh ${projectName} ${branchName}"
+    cd $tmpDir && /usr/bin/git clone -b ${branchName} $gitUrl
+    bash -x $cicdHome/${projectName}/2-deploy-docker.sh $tmpDir ${cicdHome} ${projectName} ${branchName} $nodeIp
     echo "==================Docker方式-部署结束====================="
 }
 
