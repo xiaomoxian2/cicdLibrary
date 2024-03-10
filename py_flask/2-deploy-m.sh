@@ -8,6 +8,6 @@ nodeIp=$4
 
 rsync -avz --delete $codeDir/ ${nodeIp}:/home/admin/${projectName}/
 #cd $workHome/tmp && /usr/bin/git clone -b ${branchName} $gitUrl
-ssh $nodeIp "bash supervisorctl restart gunicorn "
+ssh $nodeIp "supervisorctl restart gunicorn"
 
 [ $? -eq 0 ] && echo "构建成功！"
