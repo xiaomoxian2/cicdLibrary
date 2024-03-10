@@ -1,0 +1,47 @@
+From alpine:latest
+#MAINTAINER wangjin
+
+#ENV version 1.18.0
+#ENV PATH /usr/local/nginx/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin
+
+# 安装python
+RUN addgroup -S admin && adduser -D -G admin admin && echo "admin:admin123" | chpasswd
+RUN /bin/mkdir /install  && /bin/mkdir -p /etc/supervisor/conf.d && /bin/mkdir /home/admin/logs /home/admin/run
+WORKDIR /home/admin
+
+COPY requirements.txt /install
+COPY supervisord.conf /etc
+COPY base.conf /etc/supervisor/conf.d
+RUN /bin/sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+RUN apk update && \
+    apk add curl && \
+    apk add vim && \
+    apk add tzdata && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone &&  \
+    apk add py3-pip py3-setuptools python3 python3-dev
+    
+RUN pip install gunicorn supervisor
+
+RUN pip install -r /install/requirements.txt
+
+# 安装nginx
+ADD http://nginx.org/download/nginx-1.18.0.tar.gz /install
+ADD https://netix.dl.sourceforge.net/project/pcre/pcre/8.40/pcre-8.40.tar.gz /install
+
+RUN apk add gcc g++ make &&  \
+    cd /install && \
+    tar -zxf pcre-8.40.tar.gz && \
+    tar -zxf nginx-1.18.0.tar.gz && \
+    cd nginx-1.18.0 && \
+    ./configure --prefix=/usr/local/nginx --with-pcre=/install/pcre-8.40 --without-http_gzip_module && \
+    make && make install && \
+    ln -s /usr/local/nginx/sbin/nginx /usr/sbin/ && \
+    /bin/mkdir -p /usr/local/nginx/conf/vhost/
+
+COPY flask.conf /usr/local/nginx/conf/flask.conf
+
+RUN /bin/chown -R admin.admin /home/admin && /bin/chown -R admin.admin /usr/local/nginx
+RUN echo '* * * * * echo "test" >> /app/test.log' >> /var/spool/cron/crontabs/root
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
