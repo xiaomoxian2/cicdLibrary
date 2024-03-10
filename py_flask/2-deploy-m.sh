@@ -6,7 +6,7 @@ branchName=$3
 nodeIp=$4
 # DATE="`date +%Y%m%d%H%M`"
 
-rsync -avz --delete $codeDir/ ${nodeIp}:/home/admin/${projectName}/
+rsync -avz --delete $codeDir/${projectName}/ ${nodeIp}:/home/admin/${projectName}/
 #cd $workHome/tmp && /usr/bin/git clone -b ${branchName} $gitUrl
 ssh $nodeIp "supervisorctl restart gunicorn"
 
