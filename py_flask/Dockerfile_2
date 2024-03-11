@@ -1,11 +1,11 @@
-From local/python-base:v1
+From cicd/python-base:v1
 
 WORKDIR /home/admin
 
-add . /home/admin/py_flask
+add ./py_flask/ /home/admin/py_flask
+COPY nginx-alpine.conf /usr/local/nginx/conf/nginx.conf
 RUN pip install -r /home/admin/py_flask/deploy/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ && \
-    cp -f /home/admin/py_flask/deploy/nginx-alpine.conf /usr/local/nginx/conf/nginx.conf && \
-    chmod +x /home/admin/py_flask/deploy/docker-entrypoint.sh
+  chmod +x /home/admin/py_flask/deploy/docker-entrypoint.sh
 
 #cp /home/admin/py_flask/deploy/supervisord.conf /etc/supervisord.conf
 #cp /home/admin/py_flask/deploy/base.conf /etc/supervisor/conf.d/base.conf
