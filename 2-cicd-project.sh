@@ -34,7 +34,8 @@ function deployDocker(){
 
 function deployK3s(){
     echo "==================K3s方式-部署开始====================="
-    bash $workHome/${projectName}/deploy/2-deploy-k3s.sh ${projectName} ${branchName} $nodeIp
+    cd $tmpDir && /usr/bin/git clone -b ${branchName} $gitUrl
+    bash -x $cicdHome/${projectName}/2-deploy-k3s.sh $tmpDir ${cicdHome} ${projectName} ${branchName} $nodeIp
     echo "==================K3s方式-部署结束====================="
 }
 
