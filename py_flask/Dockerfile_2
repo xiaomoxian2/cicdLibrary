@@ -5,7 +5,8 @@ WORKDIR /home/admin
 add ./py_flask/ /home/admin/py_flask
 COPY nginx-alpine.conf /usr/local/nginx/conf/nginx.conf
 COPY docker-entrypoint.sh /home/admin/docker-entrypoint.sh
-RUN pip install -r /home/admin/py_flask/deploy/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ && \
+COPY requirements.txt /home/admin/requirements.txt
+RUN pip install -r /home/admin/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ && \
   chmod +x /home/admin/docker-entrypoint.sh
 
 #cp /home/admin/py_flask/deploy/supervisord.conf /etc/supervisord.conf
