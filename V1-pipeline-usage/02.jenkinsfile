@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('拉取git仓库代码') {
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '${tag}']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/xiaomoxian2/py_flask.git']]])
+                checkout([$class: 'GitSCM', branches: [[name: 'master']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/xiaomoxian2/py_flask.git']]])
             }
         }
         // stage('通过maven构建项目') {
