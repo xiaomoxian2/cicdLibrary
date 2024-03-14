@@ -1,0 +1,51 @@
+pipeline {
+    agent any
+
+    // 声明全局变量
+    environment {
+    	harborUser = 'admin'
+    	harborPwd = 'Harbor12345'
+    	harborUrl = '10.50.2.92:8086'
+    	harborRepo = 'cicd'
+    }
+
+    stages {
+        stage('拉取git仓库代码') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '${tag}']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/xiaomoxian2/py_flask.git']]])
+            }
+        }
+        // stage('通过maven构建项目') {
+        //     steps {
+        //         sh '/usr/local/maven3.6/bin/mvn clean package -Dmaven.test.skip=true'
+        //     }
+        // }
+        // stage('通过docker制作自定义镜像') {
+        //     steps {
+        //         sh '''mv ./target/*.jar ./docker/
+        //         docker build -t ${JOB_NAME}:${tag} ./docker/'''
+        //     }
+        // }
+        // stage('将自定义镜像推送到harbor') {
+        //     steps {
+        //         sh '''docker login -u ${harborUser} -p ${harborPwd} ${harborUrl}
+        //         docker tag ${JOB_NAME}:${tag} ${harborUrl}/${harborRepo}/${JOB_NAME}:${tag}
+        //         docker push  ${harborUrl}/${harborRepo}/${JOB_NAME}:${tag}'''
+        //     }
+        // }
+//         stage('通过publish over ssh 通知目标服务器') {
+//             steps {
+//                 sh ''' chmod +x ./docker/deploy.sh
+//                 ./docker/deploy.sh ${harborUrl} ${harborRepo} ${JOB_NAME} ${tag} ${host_port} '''
+//             }
+//         }
+        // stage('通过publish over ssh 通知目标服务器') {
+        //     steps {
+        //         sh '''IMAGE_NAME=${harborUrl}/${harborRepo}/${JOB_NAME}:${tag}
+        //         sed -i \'s#DEPLOY_ENV#\'"${deploy_env}"\'#g\' pipeline.yaml
+        //         sed -i \'s#IMAGE_NAME#\'"${IMAGE_NAME}"\'#g\' pipeline.yaml
+        //         /usr/local/bin/kubectl apply -f pipeline.yaml'''
+        //     }
+        // }
+    }
+}
