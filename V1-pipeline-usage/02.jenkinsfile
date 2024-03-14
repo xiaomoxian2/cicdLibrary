@@ -10,16 +10,24 @@ pipeline {
     }
 
     stages {
-        stage('拉取git仓库代码') {
-            steps {
-                checkout([$class: 'GitSCM', branches: [[name: 'master']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/xiaomoxian2/py_flask.git']]])
-            }
-        }
-        // stage('通过maven构建项目') {
+        // stage('拉取git仓库代码') {
         //     steps {
-        //         sh '/usr/local/maven3.6/bin/mvn clean package -Dmaven.test.skip=true'
+        //         checkout([$class: 'GitSCM', branches: [[name: 'master']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/xiaomoxian2/py_flask.git']]])
         //     }
         // }
+
+        // stage('拉取git仓库代码') {
+        //     steps {
+        //         checkout([$class: 'GitSCM', branches: [[name: 'master']], extensions: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/xiaomoxian2/py_flask.git']]])
+        //     }
+        // }
+
+
+        stage('拉取git仓库代码') {
+            steps {
+                sh 'git clone https://github.com/xiaomoxian2/py_flask.git'
+            }
+        }
         // stage('通过docker制作自定义镜像') {
         //     steps {
         //         sh '''mv ./target/*.jar ./docker/
