@@ -1,5 +1,9 @@
 pipeline {
-    agent node
+    agent {
+        node {
+            label 'node'
+        }
+    }
 
     // 声明全局变量
     environment {
