@@ -1,0 +1,24 @@
+env.nworkspace = "/opt/agent/test/${JOB_NAME}-${UUID.randomUUID().toString()}"
+
+pipeline{
+	agent{
+  	node{
+    	label "build"
+      customWorkspace "${env.nworkspace}"
+    }
+  }
+ 
+  stages{
+  	stage("build"){
+    
+    	steps{
+      	echo "${env.nworkspace}"
+      }
+    }
+  
+  }
+}
+
+
+// ### 输出
+// demo-fec54ca7-81a5-452e-91b5-2a187ab3562b

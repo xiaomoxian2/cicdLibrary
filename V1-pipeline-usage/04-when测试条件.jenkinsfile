@@ -1,0 +1,80 @@
+// 全局变量可以放在pipeline外面，也可以放在里面。
+buildUser = "jenkins"
+
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '30', numToKeepStr: '5')
+    }
+    parameters {
+        choice choices: ['prod', 'test', 'dev'], description: 'Please choice env name.', name: 'envName'
+        string defaultValue: '1.1.1', name: 'Version', trim: true
+    }
+
+    //全局变量
+    environment {
+     	NAME = "RongMei"
+        VERSION = "1.1.10"
+        ENVTYPE = "DEV"
+    }    
+
+    stages {
+        stage("build"){
+            //局部变量
+            environment {
+                VERSION = "1.1.20"
+            }
+
+            input {
+                message 'Please choice your options.'
+                ok '提交'
+                parameters {
+                    choice choices: ['rollback', 'stop'], name: 'runOptions'
+                }
+            }
+            steps {
+                script {
+                    echo "${VERSION}"
+                    echo "${buildUser}"
+
+                    //注意：选项参数中的变量也是全局变量，因此还可以使用如下2种方式来访问变量
+                    echo "${params.envName}"
+                    echo "${env.envName}"
+                    echo "${envName}"
+
+                    echo "${runOptions}"
+
+                    if ("${runOptions}" == "rollback"){
+                        println("rollback……")
+                    }
+                    if ("${runOptions}" == "stop"){
+                        println("stop……")
+                    } 
+
+                    env.runOptions = "${runOptions}"          
+                }
+            }
+        }
+
+
+        stage("Rollback"){
+            when {
+                environment name: "runOptions", value: 'rollback'
+            }
+            steps {
+                println("rollback……")
+            }
+        }
+
+        stage("Stop"){
+            when {
+                expression { runOptions == 'stop' }
+            }
+            steps {
+                println("stop……")
+            }
+        }
+    }
+ 
+}

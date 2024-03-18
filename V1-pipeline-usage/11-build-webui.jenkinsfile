@@ -1,0 +1,147 @@
+#!groovy
+
+@Library('jenkinslib@main') _
+// func from sharelibrary
+def tool = new org.devops.tool()
+def toemail = new org.devops.toemail()
+// def gitlab = new org.devops.gitlab()
+// def nexus = new org.devops.nexus()
+
+// env
+String dataWorkSpace = "/data/workspace"
+String webuiCodeUrl = "git@gitlab.info.dbappsecurity.com.cn:isoc/app-web.git"
+String webuiOriginName = "webuiCode"
+String buildType = "pnpm"
+String npmParameter = "--unsafe-perm=true --registry=https://ci.das-security.cn/repository/ah_npm "
+String appName = "saas-web-ui"
+String buildShell1 = " ${npmParameter} install"
+String buildShell2 = " run build:normal"
+String webuiImageRepoUrl = "core.harbor1.domain/soc/saas-web-ui"
+
+// pipeline
+pipeline {
+    agent {
+        node {
+            label 'master'
+            customWorkspace "${dataWorkSpace}/${JOB_NAME}"
+        }
+    }
+    environment {
+        SSH = credentials('jenkins-connect')
+        DOCKERHUB = credentials('dockerhub')
+        NODE_OPTIONS = "--max-old-space-size=8192"
+    }
+    options {
+        timestamps() // 日志显示时间
+        skipDefaultCheckout() //删除隐式checkout scm 语句
+        disableConcurrentBuilds() //禁止并行
+        timeout(time: 1, unit: 'HOURS') //流水线超时设置1h
+        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '7', numToKeepStr: '20')
+    }
+    parameters {
+        gitParameter branch: '', branchFilter: "${webuiOriginName}/(.*)", defaultValue: 'develop', description: '请选择saas-web-ui构建分支', listSize: '8', name: 'webuiBranchName', quickFilterEnabled: false, selectedValue: 'TOP', sortMode: 'DESCENDING_SMART', tagFilter: '*', type: 'GitParameterDefinition', useRepository: '.*app-web.git'
+        choice choices: ['None', '10.50.108.3', '10.50.108.4', '10.50.108.5', '10.50.108.7', '10.50.108.32', '10.50.108.33', '10.50.108.34', '10.50.108.35', '10.50.108.36', '10.50.108.37', '10.50.108.38', '10.50.108.39', '10.50.108.40', '10.50.108.41', '192.168.30.227', '192.168.30.228', '192.168.30.39', '192.168.30.23', '192.168.30.147', '192.168.30.148', '192.168.30.149', '10.50.2.53', '10.50.2.54', '10.50.2.179', '10.50.2.209', '10.50.2.178', '10.50.2.253'], description: '请选择需要发布K3s环境IP(默认为空,不进行发布过程)', name: 'k3sIp'
+    }
+
+    stages {
+        //下载代码
+        stage("GetCloneCode") {
+            steps{
+                timeout(time: 3, unit:"MINUTES"){
+                    script{
+                        tool.PrintMes("获取代码","blue")
+                        currentBuild.description = "拉取${webuiBranchName}分支代码"
+                        checkout scmGit(
+                            branches: [[name: "${webuiBranchName}"]], 
+                            extensions: [cleanBeforeCheckout(deleteUntrackedNestedRepositories: true)], 
+                            userRemoteConfigs: [[name: "${webuiOriginName}", url: "${webuiCodeUrl}"]]
+                        )
+                        gitUrl = "http://gitlab.info.dbappsecurity.com.cn/isoc/app-web/-/commits/${webuiBranchName}/"
+                        gitCommitMsg = sh(returnStdout: true, script: 'git log --pretty=format:">%an %ad %s\n" -5').trim()
+                    }
+                }
+            }
+        }
+
+        //构建制品
+        stage("BuildPackage"){
+            steps{
+                timeout(time:10, unit:"MINUTES"){
+                    script{
+                        tool.PrintMes("执行打包","blue")
+                        currentBuild.description = "执行${buildType}打包命令"
+                        tool.Build("${buildType}","${buildShell1}")
+                        tool.Build("${buildType}","${buildShell2}")
+                    }
+                }
+            }
+        }
+
+        //构建镜像
+        stage("BuildImage"){
+            steps{
+                timeout(time:5, unit:"MINUTES"){
+                    script{
+                        tool.PrintMes("构建Docker镜像","blue")
+                        currentBuild.description = "构建Docker镜像"
+                        commitId= sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                        branchName = sh(returnStdout: true, script: "echo ${webuiBranchName} | tr '/' '_'").trim()
+                        webuiImageUrl = "${webuiImageRepoUrl}:${branchName}-${commitId}"
+                        sh "DOCKER_BUILDKIT=1 docker build --load  --build-arg 'commitId=${commitId}' -t '${webuiImageUrl}' ./"
+                        tool.PrintMes("上传Docker镜像","blue")
+                        currentBuild.description = "上传Docker镜像: ${webuiImageUrl}"
+                        sh "docker push ${webuiImageUrl}"
+                        if ( k3sIp != "None" ) {
+                            tool.PrintMes("配置ssh免密/docker login/kubeconfig文件","blue")
+                            currentBuild.description = "配置${k3sIp} ssh免密/docker login/kubeconfig文件"
+                            sh "chmod +x ${JENKINS_HOME}/workspace/${JOB_NAME}@libs/*/scripts/init.sh"
+                            sh 'bash ${JENKINS_HOME}/workspace/${JOB_NAME}@libs/*/scripts/init.sh ${k3sIp} ${SSH_PSW} ${DOCKERHUB_USR} ${DOCKERHUB_PSW}'
+                        }
+                    }
+                }
+            }
+        }
+
+        //部署镜像
+        stage("DeployImage"){
+            steps{
+                timeout(time:5, unit:"MINUTES"){
+                    script{
+                        if ( k3sIp != "None" ) {
+                            kubeConfigYamlPath = "/var/jenkins_home/install_dir/kubeconfig/${k3sIp}/k3s.yaml"
+                            tool.PrintMes("部署Docker镜像","blue")
+                            currentBuild.description = "更新${k3sIp}环境上${appName}镜像"
+                            sh "kubectl --kubeconfig=${kubeConfigYamlPath} -n saas set image deployment ${appName} ${appName}=${webuiImageUrl}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+    //构建后操作
+    post {
+        always {
+            script{
+                sh "bash ${JENKINS_HOME}/workspace/${JOB_NAME}@libs/*/scripts/dingding.sh '${JOB_NAME}' '${currentBuild.currentResult}' '${k3sIp}' '${appName}' '${webuiBranchName}' '${currentBuild.durationString}' '${BUILD_URL}' '${gitUrl}' '${gitCommitMsg}' "
+            }
+        }
+
+        success {
+            script{
+                currentBuild.description = "\n 构建成功!" 
+            }
+        }
+
+        failure {
+            script{
+                currentBuild.description = "\n 构建失败!" 
+            }
+        }
+
+        aborted {
+            script{
+                currentBuild.description = "\n 构建取消!" 
+            }
+        }
+    }
+}

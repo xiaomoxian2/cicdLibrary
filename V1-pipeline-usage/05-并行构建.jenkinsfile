@@ -1,0 +1,28 @@
+pipeline {
+    agent any
+    stages {
+        stage('Parallel Stage') {
+            // 并行构建时，任何一个失败，其他也失败
+            failFast true
+            // parallel 并行构建
+            parallel {
+                stage('windows') {
+                    agent {
+                        label "master"
+                    }
+                    steps {
+                        echo "windows"
+                    }
+                }
+                stage('linux') {
+                    agent {
+                        label "build"
+                    }
+                    steps {
+                        echo "linux"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,283 @@
+#!groovy
+// 引入共享库，jenkinslib名称在系统设置--》Global Pipeline Libraries 中配置
+@Library('jenkinslib') _ 
+//调用方法库文件
+def approval = new org.devops.library()
+
+// 定义全局变量
+def skipRemainingStages = false   //当前节点是否跳过
+def input_message   //提示语
+def randomToken    //发布秘钥
+def skipadminUser = false
+
+// def 动态类型，String 强类型
+def name = "devops"
+String name2 = "devops"
+
+// 字符串操作
+env.commitID = "${UUID.randomUUID().toString()}"
+env.commitID = "${env.commitID.split("-")[0]}"
+// ${变量名[0..7]}
+// 变量名.take(8)
+// ${变量名.replace(' and counting', '')}
+
+
+/*
+全局变量
+
+参考：https://blog.csdn.net/qq_34556414/article/details/116981752
+
+内置变量：
+BUILD_NUMBER          //构建号
+BUILD_ID              //构建号
+BUILD_DISPLAY_NAME    //构建显示名称
+JOB_NAME              //项目名称 ${dataWorkSpace}/${JOB_NAME}
+              
+EXECUTOR_NUMBER       //执行器数量
+NODE_NAME             //构建节点名称
+WORKSPACE             //工作目录
+JENKINS_HOME          //Jenkins home
+JENKINS_URL           //Jenkins地址
+BUILD_URL             //构建地址
+JOB_URL               //项目地址
+
+currentbuild 变量
+currentResult   //构建结果
+displayName      //构建名称  #111
+description      //构建描述
+duration         //持续时间
+
+引用方式：
+$变量名
+${变量名}
+${env.变量名}
+
+*/
+
+
+/*
+局部变量
+在某个stage定义的变量默认是局部变量，在后续的stage中可能语法引用，所以如果需要引用最好定义为全局变量
+
+全局变量的定义方式：
+env.name = "devops"
+引用方式： "${env.name}"
+*/
+
+
+pipeline {
+    // 指定运行的节点
+    // 语法1
+    agent any
+    // 语法2
+    // agent {
+    //     node {
+    //         label 'master'
+    //         customWorkspace "${dataWorkSpace}/${JOB_NAME}"
+    //     }
+    // }
+
+    // 指定了 Maven 和 JDK 的版本。在 Build 阶段的 sh 步骤中，我们直接使用了 mvn 命令，无需手动指定路径，因为 Jenkins 会自动为我们配置好路径
+    tools {
+        jdk 'jdk-11'
+        maven 'maven-3.6'
+        nodejs 'node-v16'
+        go 'go-1.17'
+    }
+
+    // 选项
+    options {
+        timestamps() // 在日志中打印时间
+        skipDefaultCheckout() // 删除隐式的checkout scm 语句
+        disableConcurrentBuilds() //禁止并行
+        timeout(time: 1, unit: 'HOURS') //流水线超时设置1h
+        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '7', numToKeepStr: '20')  // 构建历史保留7天20个构建
+    }
+
+    // 全局变量，覆盖默认环境变量
+    environment {
+    	harborUser = 'admin'
+    	harborPwd = 'Harbor12345'
+    	harborUrl = '192.168.1.181:8086'
+    	harborRepo = 'demo'
+
+        // 引用凭证
+        // 用法 {SSH_PSW} ${DOCKERHUB_USR} ${DOCKERHUB_PSW}
+        SSH = credentials('jenkins-connect')
+        DOCKERHUB = credentials('dockerhub')
+        NODE_OPTIONS = "--max-old-space-size=8192"
+
+    }
+
+    // triggers {
+    //     // 这个代表每小时执行一次。
+    //     cron 'H * * * *'
+    // }
+
+    // 传参
+    parameters {
+        // 字符串参数
+        string defaultValue: 'release/v1.0.1', description: '请输入需要构建的saas代码分支.', name: 'saasBranchName'
+        // 下拉框选项
+        choice choices: ['None', '192.168.1.2'], description: '请选择需要发布K3s环境IP(默认为空,不进行发布过程)', name: 'k3sIp'
+        // git 参数选项
+        gitParameter branch: '', branchFilter: "${webuiOriginName}/(.*)", defaultValue: 'develop', description: '请选择web-ui构建分支', listSize: '8', name: 'webuiBranchName', quickFilterEnabled: false, selectedValue: 'TOP', sortMode: 'DESCENDING_SMART', tagFilter: '*', type: 'GitParameterDefinition', useRepository: '.*app-web.git'
+    }
+
+    // 构建步骤
+    stages {
+        stage('Hello') {
+            steps {
+                // 一级指令： echo sh script println
+                echo 'Hello World'
+                // 常用页面变量三种方式：
+                echo "${VERSION}"
+                echo "${env.VERSION}"
+                echo "${params.VERSION}"
+                println("devops")
+
+                // 执行shell命令方式，要用双引号
+                sh "ls -l"
+                // 多行命令
+                sh '''uptime
+                free -g'''
+
+                // 在 script{} 块中调用共享库方法，执行脚本，groorvy基本语句
+                script {
+                    mytools.printMsg('hello world')         // 放在 script {} 里调用
+                    gitCommitMsg = sh(returnStdout: true, script: 'git log --pretty=format:">%an %ad %s\n" -5').trim()
+
+                    // 局部变量
+                    myName = "RongMei"
+                    // if else语法
+                    if (myName == "RongMei"){
+                        println("true")
+                    }
+                }
+            }
+        }
+
+        stage("GetCloneCode") {
+            steps{
+                // 子步骤设置超时
+                timeout(time: 3, unit:"MINUTES"){
+                    // 执行脚本
+                    script{
+                        // 调用共享库方法
+                        tool.PrintMes("获取代码","blue")
+                        currentBuild.description = "拉取${webuiBranchName}分支代码"
+                        //currentBuild.displayName = "Devops:commitID"
+
+                        // 对于此类用法，可以用代码生成片段
+                        checkout scmGit(
+                            branches: [[name: "${webuiBranchName}"]], 
+                            extensions: [cleanBeforeCheckout(deleteUntrackedNestedRepositories: true)], 
+                            userRemoteConfigs: [[name: "${webuiOriginName}", url: "${webuiCodeUrl}"]]
+                        )
+                        gitUrl = "http://gitlab.info.dbappsecurity.com.cn/isoc/app-web/-/commits/${webuiBranchName}/"
+                        
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            // input 交互式输入
+// ● message: 提示信息
+// ● ok: 表单中确认按钮的文本
+// ● submitter: 提交人，默认所有人可以
+// ● parameters： 交互时用户选择的参数
+            input {
+                message "是否继续发布"
+                ok "Yes"
+                submitter "zeyang,aa"
+                parameters {
+                    string(name: 'ENVTYPE', defaultValue: 'DEV', description: 'env type..[DEV/STAG/PROD]')
+                }
+            }
+
+             input {
+                message 'Please choice your options.'
+                ok '提交'
+                parameters {
+                    choice choices: ['rollback', 'stop'], name: 'runOptions'
+                }
+            }
+            steps {
+                echo "Deploy to  ${runOptions}, doing......."
+                script {
+                    echo "${VERSION}"
+                    echo "${buildUser}"
+
+                    //引用变量
+                    echo "${runOptions}"
+
+                    //这里写判断逻辑
+                    if ("${runOptions}" == "rollback"){
+                        println("rollback……")
+                    }
+                    if ("${runOptions}" == "stop"){
+                        println("stop……")
+                    }                    
+                }
+            }
+
+        }
+
+// when 语法
+// ###  allOf 条件全部成立
+//  when {
+//      allOf {
+//          environment name: 'CAN_DEPLOY', value: 'true'
+//          environment name: 'DEPLOY_ENV', value: 'dev'
+//      }
+//  }
+
+// ### anyOf 条件其中一个成立
+// when {
+//      anyOf {
+//          environment name: 'CAN_DEPLOY', value: 'true'
+//          environment name: 'DEPLOY_ENV', value: 'dev'
+//      }
+//  }
+
+        stage("Rollback"){
+            when {
+                environment name: "runOptions", value: 'rollback'
+            }
+            steps {
+                println("rollback……")
+            }
+        }
+
+
+    }
+
+    //构建后操作
+    post {
+        always {
+            script{
+                sh "bash ${JENKINS_HOME}/workspace/${JOB_NAME}@libs/*/scripts/dingding.sh '${JOB_NAME}' '${currentBuild.currentResult}' '${k3sIp}' '${appName}' '${webuiBranchName}' '${currentBuild.durationString}' '${BUILD_URL}' '${gitUrl}' '${gitCommitMsg}' "
+            }
+        }
+
+        success {
+            script{
+                currentBuild.description = "\n 构建成功!" 
+            }
+        }
+
+        failure {
+            script{
+                currentBuild.description = "\n 构建失败!" 
+            }
+        }
+
+        aborted {
+            script{
+                currentBuild.description = "\n 构建取消!" 
+            }
+        }
+    }
+
+}
