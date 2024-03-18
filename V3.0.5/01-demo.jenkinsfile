@@ -27,7 +27,7 @@ pipeline {
 
 
                     echo "get resources"
-                    data = libraryResource 'config/config.json' //这里是字符串数据
+                    data = libraryResource 'config.json' //这里是字符串数据
                     println(data)
 
                     //这里是json数据
