@@ -1,0 +1,46 @@
+@Library("mylib@main") _
+
+//import src/org/devops/Build.groovy
+def build = new org.devops.Build()
+
+pipeline {
+    agent {label "node01"}
+
+    // 选项
+    options {
+        timestamps() // 在日志中打印时间
+        skipDefaultCheckout() // 删除隐式的checkout scm 语句
+        disableConcurrentBuilds() //禁止并行
+        timeout(time: 1, unit: 'HOURS') //流水线超时设置1h
+        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '7', numToKeepStr: '20')  // 构建历史保留7天20个构建
+    }
+
+    // 传参
+    parameters {
+        // 字符串参数
+        string defaultValue: 'http://10.50.2.92/root/demo-npm.git', description: '请输入需要构建的saas代码分支.', name: 'srcUrl'
+        // 下拉框选项
+        choice choices: ['master', 'main'], description: '分支名称', name: 'branchName'
+        // 字符串参数
+        string defaultValue: '/usr/bin/npm install && /usr/bin/npm run build', description: '构建命令.', name: 'buildShell'
+
+    }
+
+    stages{
+        stage("CheckOut"){
+            steps{
+                script{
+                    build.CheckOut()
+                }
+            }
+        }
+
+        stage("Build"){
+            steps{
+                script{
+                    build.Build()
+                }
+            }
+        }        
+    }
+}
