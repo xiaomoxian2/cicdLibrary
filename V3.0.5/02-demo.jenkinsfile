@@ -1,7 +1,7 @@
 @Library("mylib@main") _
 
 //import src/org/devops/Build.groovy
-def build = new org.devops.Build()
+def build = new org.devops.build()
 
 pipeline {
     agent {label "node01"}
